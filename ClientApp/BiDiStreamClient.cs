@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using GrpcDemo;
 using Grpc.Net.Client;
+using Grpc.Core;
 
 public static class BiDiStreamClient
 {
@@ -12,14 +13,16 @@ public static class BiDiStreamClient
 
         var readTask = Task.Run(async () =>
         {
-            await foreach (var response in call.ResponseStream.ReadAllAsync())
+            while (await call.ResponseStream.MoveNext())
             {
+                var response = call.ResponseStream.Current;
                 Console.WriteLine("Server: " + response.Message);
             }
         });
 
         foreach (var name in new[] { "A", "B", "C" })
         {
+            Console.WriteLine("Client: " + name);
             await call.RequestStream.WriteAsync(new HelloRequest { Name = name });
             await Task.Delay(500);
         }

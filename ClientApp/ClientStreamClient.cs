@@ -12,12 +12,13 @@ public static class ClientStreamClient
 
         foreach (var name in new[] { "Uno", "Due", "Tre" })
         {
+            Console.WriteLine("Invio dal cliet :"+ name);
             await call.RequestStream.WriteAsync(new HelloRequest { Name = name });
             await Task.Delay(300);
         }
 
         await call.RequestStream.CompleteAsync();
         var response = await call;
-        Console.WriteLine(response.Message);
+        Console.WriteLine("Risposta dal Server: "+response.Message);
     }
 }

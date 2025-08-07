@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using GrpcDemo;
 using Grpc.Net.Client;
+using Grpc.Core;
 
 public static class ServerStreamClient
 {
@@ -10,9 +11,11 @@ public static class ServerStreamClient
         var client = new Greeter.GreeterClient(channel);
         var call = client.StreamGreetings(new HelloRequest { Name = "Anna" });
 
-        await foreach (var response in call.ResponseStream.ReadAllAsync())
+        while (await call.ResponseStream.MoveNext())
         {
-            Console.WriteLine(response.Message);
+            var response = call.ResponseStream.Current;
+            Console.WriteLine("Ricevo dal server: "+response.Message);
         }
+
     }
 }

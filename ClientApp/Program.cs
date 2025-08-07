@@ -1,4 +1,5 @@
 using System;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Grpc.Net.Client;
 
@@ -6,7 +7,16 @@ class Program
 {
     static async Task Main(string[] args)
     {
-        using var channel = GrpcChannel.ForAddress("https://localhost:5001");
+        var httpHandler = new HttpClientHandler//only for test
+        {
+            ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+        };
+
+        using var channel = GrpcChannel.ForAddress("https://localhost:63174", new GrpcChannelOptions
+        {
+            HttpHandler = httpHandler
+        });
+
 
         while (true)
         {
