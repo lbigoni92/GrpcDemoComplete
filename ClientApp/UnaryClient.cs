@@ -9,7 +9,7 @@ public static class UnaryClient
     {
         var client = new Greeter.GreeterClient(channel);
         Console.WriteLine("Client invia: Mario");
-        var reply = await client.SayHelloAsync(new HelloRequest { Name = "Mario" });
-        Console.WriteLine("Ricevo dal server: " + reply.Message);
+        var response = await client.SayHelloAsync(new HelloRequest { Name = "Mario" });
+        Console.WriteLine("Ricevo dal server: " + response.Message);
     }
 }
