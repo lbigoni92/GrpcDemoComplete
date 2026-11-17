@@ -5,9 +5,8 @@ using Grpc.Net.Client;
 
 public static class ClientStreamClient
 {
-    public static async Task Run(GrpcChannel channel)
+    public static async Task Run(Greeter.GreeterClient client)
     {
-        var client = new Greeter.GreeterClient(channel);
         using var call = client.SendGreetings();
 
         foreach (var name in new[] { "Uno", "Due", "Tre" })

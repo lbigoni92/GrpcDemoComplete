@@ -134,7 +134,7 @@ def main() -> None:
 			print("3) Client Streaming")
 			print("4) Bidirectional Streaming")
 			print("0) Esci")
-			choice = input("> ").strip()
+			choice = input("PY> ").strip()
 			if choice == "0":
 				break
 			action = actions.get(choice)

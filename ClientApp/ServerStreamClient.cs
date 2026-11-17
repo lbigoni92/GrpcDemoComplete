@@ -6,9 +6,8 @@ using Grpc.Core;
 
 public static class ServerStreamClient
 {
-    public static async Task Run(GrpcChannel channel)
+    public static async Task Run(Greeter.GreeterClient client)
     {
-        var client = new Greeter.GreeterClient(channel);
         var call = client.StreamGreetings(new HelloRequest { Name = "Anna" });
 
         while (await call.ResponseStream.MoveNext())

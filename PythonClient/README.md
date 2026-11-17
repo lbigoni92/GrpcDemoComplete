@@ -22,17 +22,17 @@ Dimostra tutti e 4 i tipi di comunicazione gRPC:
 
 - **Python 3.8 o superiore** (consigliato 3.11 / 3.12)
 - **pip** aggiornato (`python -m pip install --upgrade pip`)
-- **ServerApp** in esecuzione su `https://localhost:63174`
+- **ServerApp** in esecuzione sull'endpoint in chiaro `http://localhost:63175`
 
 ---
 
-## Librerie usate
+## Librerie ufficiali usate
 
 | Pacchetto | Scopo |
 |---|---|
 | `grpcio` | Runtime gRPC: gestisce canali, chiamate, streaming |
-| `grpcio-tools` | Include `protoc` + il plugin Python: genera i file `.py` runtime dal `.proto` |
-| `mypy-protobuf` | Plugin aggiuntivo per `protoc`: genera i file `.pyi` con le annotazioni di tipo per l'IDE |
+| `grpcio-tools` | Include `protoc` + il plugin Python: genera il codice client dal `.proto` |
+| `mypy-protobuf` | Plugin `protoc` che genera i type stub `.pyi` completi per messaggi **e** servizi gRPC |
 
 Documentazione ufficiale: <https://grpc.io/docs/languages/python/>
 
@@ -40,100 +40,95 @@ Documentazione ufficiale: <https://grpc.io/docs/languages/python/>
 
 ## Installazione dell'ambiente
 
-Dalla cartella `PythonClient/`, crea e attiva un virtual environment:
+### 1. Crea e attiva un virtual environment
+
+Dalla cartella `PythonClient/`:
 
 ```
 python -m venv .venv
 ```
 
-Su **Windows**:
+Su **Windows** attiva con:
 
 ```
 .venv\Scripts\activate
 ```
 
-Su **Linux / macOS**:
+Su **Linux / macOS** attiva con:
 
 ```
 source .venv/bin/activate
 ```
 
-Installa le dipendenze con il venv attivo:
+### 2. Installa le dipendenze
+
+Con il venv attivo:
 
 ```
 pip install -r requirements.txt
 ```
 
+Questo installa `grpcio` (runtime), `grpcio-tools` (compilatore) e `mypy-protobuf` (type stub).
+
 ---
 
-## Come funziona: file generati, comandi e responsabilità
+## Come vengono generati gli stub dal `.proto`
 
-Il file `.proto` è la fonte di verità. Da esso `protoc` genera 4 file distinti, ognuno
-con uno scopo preciso e un comando dedicato.
+### Cos'è uno stub gRPC
 
-### Mappa completa: comando → file generato → chi lo usa
+Il `.proto` definisce il contratto del servizio (messaggi e RPC). Per usarlo da Python,
+`protoc` legge il `.proto` e genera questi file:
 
-```
-greet.proto
-│
-├── --python_out          → greet_pb2.py          (Python a runtime)
-├── --grpc_python_out     → greet_pb2_grpc.py      (Python a runtime)
-├── --mypy_out            → greet_pb2.pyi          (Pylance / IDE)
-└── --mypy_grpc_out       → greet_pb2_grpc.pyi     (Pylance / IDE)
-```
-
-### Dettaglio di ogni file
-
-| File | Comando che lo genera | Contenuto | Chi lo usa | Committato |
-|---|---|---|---|---|
-| `greet_pb2.py` | `--python_out` | Classi runtime: `HelloRequest`, `HelloReply` costruite dinamicamente dal descrittore binario | Python a **runtime** | ❌ |
-| `greet_pb2_grpc.py` | `--grpc_python_out` | `GreeterStub` (client) e `GreeterServicer` (server) con i 4 RPC | Python a **runtime** | ❌ |
-| `greet_pb2.pyi` | `--mypy_out` | Annotazioni statiche dei messaggi: `name: str`, `message: str` | **Pylance** / IDE | ✅ |
-| `greet_pb2_grpc.pyi` | `--mypy_grpc_out` | Annotazioni statiche dei servizi: tipo di ritorno di `SayHello` → `HelloReply`, ecc. | **Pylance** / IDE | ✅ |
-
-### Perché i `.py` non vengono committati e i `.pyi` sì
-
-I file `.py` vengono **rigenerati automaticamente** ogni volta che `client.py` si avvia,
-quindi non ha senso tenerli nel repo.
-
-I file `.pyi` vengono **letti da Pylance staticamente**, senza eseguire il codice.
-Se non fossero nel repo, clonando il progetto l'IDE non avrebbe le informazioni di tipo
-finché non si avvia almeno una volta `client.py`. Committandoli, i tipi funzionano subito.
-
-### Perché servono due librerie (`grpcio-tools` + `mypy-protobuf`)
-
-`grpcio-tools` è la libreria ufficiale gRPC. Il suo flag `--pyi_out` genera solo
-`greet_pb2.pyi` (i messaggi), ma **non genera `greet_pb2_grpc.pyi`** (i servizi).
-
-Senza `greet_pb2_grpc.pyi`, Pylance non conosce il tipo di ritorno di `stub.SayHello(...)`
-e lo mostra come `Any`. Anche `response.message` diventa `Any`.
-
-`mypy-protobuf` aggiunge i due flag `--mypy_out` e `--mypy_grpc_out` che generano
-entrambi i `.pyi` con tutte le annotazioni complete.
-
-| Flag | Libreria che lo fornisce | File generato |
+| File generato | Contenuto | Committato |
 |---|---|---|
-| `--pyi_out` | `grpcio-tools` (ufficiale) | solo `greet_pb2.pyi` |
-| `--mypy_out` | `mypy-protobuf` | `greet_pb2.pyi` (più completo) |
-| `--mypy_grpc_out` | `mypy-protobuf` | `greet_pb2_grpc.pyi` ← quello che mancava |
+| `greet_pb2.py` | Classi runtime per i messaggi (`HelloRequest`, `HelloReply`) | No — generato a runtime |
+| `greet_pb2.pyi` | Type stub messaggi: `name: str`, `message: str` — letto da Pylance | **Sì** |
+| `greet_pb2_grpc.py` | `GreeterStub` e `GreeterServicer` runtime con tutti e 4 gli RPC | No — generato a runtime |
+| `greet_pb2_grpc.pyi` | Type stub servizi: tipo di ritorno di `SayHello`, `StreamGreetings`, ecc. — letto da Pylance | **Sì** |
+
+> I file `.py` non vengono committati: vengono ricreati ogni avvio.
+> I file `.pyi` vengono committati: Pylance li legge **staticamente**, senza eseguire il codice.
+
+### Perché servono due librerie per la generazione
+
+`grpcio-tools` (il comando ufficiale su grpc.io) genera correttamente i file `.py` a runtime,
+ma i suoi type stub (`--pyi_out`) coprono solo i messaggi (`greet_pb2.pyi`).
+Il file `greet_pb2_grpc.pyi` — che descrive i tipi di ritorno di `stub.SayHello(...)` —
+**non viene generato** da `--pyi_out`.
+
+Senza `greet_pb2_grpc.pyi`, Pylance non conosce il tipo di ritorno degli RPC e lo inferisce
+come `Any`, rendendo `response` e `response.message` non tipizzati nell'editor.
+
+`mypy-protobuf` (`--mypy_out` e `--mypy_grpc_out`) risolve esattamente questo problema:
+genera entrambi i file `.pyi` con le annotazioni complete.
 
 ### Generazione automatica all'avvio
 
-`client.py` esegue automaticamente `protoc` all'avvio tramite la funzione
-`_genera_stub_dal_proto()`, prima di importare qualsiasi stub. Il comando equivalente è:
+`client.py` **rigenera automaticamente** i file `.py` ogni volta che viene avviato,
+prima di importarli. La funzione `_genera_stub_dal_proto()` esegue internamente:
 
 ```
 python -m grpc_tools.protoc
-	-I Shared/Protos
-	--python_out=PythonClient
-	--grpc_python_out=PythonClient
-	--mypy_out=PythonClient
-	--mypy_grpc_out=PythonClient
-	Shared/Protos/greet.proto
+	-I <path>/Shared/Protos
+	--python_out=<path>/PythonClient
+	--grpc_python_out=<path>/PythonClient
+	--mypy_out=<path>/PythonClient
+	--mypy_grpc_out=<path>/PythonClient
+	<path>/Shared/Protos/greet.proto
 ```
 
-Se `mypy-protobuf` non è installato nel venv, i plugin `.pyi` vengono saltati
-automaticamente (la generazione non fallisce) e vengono usati i `.pyi` committati nel repo.
+In questo modo il client è sempre allineato al contratto: se il `.proto` cambia,
+basta riavviare `client.py` e gli stub vengono rigenerati senza nessun passo manuale.
+
+### Significato delle opzioni di `protoc`
+
+| Opzione | Effetto |
+|---|---|
+| `-I <dir>` | Cartella di ricerca del `.proto` |
+| `--python_out=<dir>` | Genera `greet_pb2.py` — classi runtime dei messaggi |
+| `--grpc_python_out=<dir>` | Genera `greet_pb2_grpc.py` — `GreeterStub` e `GreeterServicer` runtime |
+| `--mypy_out=<dir>` | Genera `greet_pb2.pyi` — type stub messaggi (via `mypy-protobuf`) |
+| `--mypy_grpc_out=<dir>` | Genera `greet_pb2_grpc.pyi` — type stub servizi gRPC (via `mypy-protobuf`) |
 
 ---
 
@@ -149,7 +144,9 @@ Da terminale (nella root della solution):
 dotnet run --project ServerApp
 ```
 
-Il server espone `https://localhost:63174`, lo stesso endpoint usato dal client C#.
+Il server si mette in ascolto su:
+- `https://localhost:63174` — HTTPS, usato dal client .NET
+- `http://localhost:63175` — HTTP/2 in chiaro (h2c), usato da questo client Python
 
 ### 2. Avvia il client Python
 
@@ -159,7 +156,7 @@ Con il venv attivo, dalla cartella `PythonClient/`:
 python client.py
 ```
 
-All'avvio vengono rigenerati automaticamente i file `.py`, poi compare il menu:
+### 3. Scegli un tipo di comunicazione dal menu
 
 ```
 Scegli un tipo di comunicazione:
@@ -174,19 +171,21 @@ Scegli un tipo di comunicazione:
 
 ## Connessione HTTPS con certificato self-signed
 
-Il client Python si connette su **`https://localhost:63174`**, lo stesso endpoint del
-client C#. Il server Kestrel usa un certificato self-signed di sviluppo.
+Il client Python usa lo **stesso endpoint del client C#**: `https://localhost:63174`.
 
-Il client C# lo gestisce con `DangerousAcceptAnyServerCertificateValidator`.
-Il client Python fa l'equivalente con `ssl.get_server_certificate()`:
+Il server Kestrel usa un certificato self-signed di sviluppo. Il client .NET lo gestisce con
+`DangerousAcceptAnyServerCertificateValidator`. Il client Python fa l'equivalente con
+`ssl.get_server_certificate()`: recupera il certificato dal server prima di aprire il canale
+gRPC e lo passa direttamente come `root_certificates`. In questo modo TLS funziona senza
+dover installare o fidarsi del certificato nel sistema operativo.
 
 ```
-ssl.get_server_certificate(("localhost", 63174))    # scarica il cert da Kestrel
-grpc.ssl_channel_credentials(root_certificates=…)   # lo usa come CA fidata
-grpc.secure_channel("localhost:63174", creds)        # canale gRPC su TLS
+ssl.get_server_certificate(("localhost", 63174))   # legge il cert dal server
+grpc.ssl_channel_credentials(root_certificates=…)  # lo usa come CA di fiducia
+grpc.secure_channel("localhost:63174", creds)       # canale HTTPS/gRPC
 ```
 
-TLS funziona senza installare certificati nel sistema operativo e senza modificare il server.
+Non è necessaria nessuna modifica al server.
 
 ---
 
@@ -194,12 +193,13 @@ TLS funziona senza installare certificati nel sistema operativo e senza modifica
 
 ### `FileNotFoundError: File .proto non trovato`
 
-`Shared/Protos/greet.proto` non è raggiungibile. Verifica che la struttura della
-solution non sia stata spostata rispetto alla cartella `PythonClient/`.
+La cartella `Shared/Protos/greet.proto` non è raggiungibile dal percorso di `client.py`.
+Verifica di trovarti nella cartella giusta e che la struttura della solution non sia
+stata spostata.
 
 ### `ModuleNotFoundError: No module named 'grpc_tools'`
 
-Il venv non ha le dipendenze installate:
+Le dipendenze non sono installate nel venv attivo. Esegui:
 
 ```
 pip install -r requirements.txt
@@ -207,9 +207,10 @@ pip install -r requirements.txt
 
 ### `RuntimeError: Generazione degli stub gRPC dal file .proto fallita`
 
-`protoc` ha restituito errore. Cause possibili:
-- versione di `grpcio-tools` incompatibile con `protobuf` installata
-- file `.proto` con errori di sintassi
+`protoc` ha restituito un errore. Cause possibili:
+- `mypy-protobuf` non è installato nel venv (`pip install -r requirements.txt`)
+- Il file `.proto` contiene errori di sintassi
+- La versione di `grpcio-tools` è incompatibile con la versione di `protobuf` installata
 
 Reinstalla le dipendenze:
 
@@ -217,14 +218,14 @@ Reinstalla le dipendenze:
 pip install --upgrade -r requirements.txt
 ```
 
-### `StatusCode.UNAVAILABLE` alla connessione
+### `StatusCode.UNAVAILABLE` / `Expected SETTINGS frame`
 
-`ServerApp` non è avviato oppure sta ancora inizializzando. Verifica che il processo
-sia in ascolto su `https://localhost:63174`.
+`ServerApp` non è avviato, oppure la porta `63175` non è configurata in HTTP/2-only.
+Controlla `ServerApp/Program.cs` e verifica che il server sia in esecuzione.
 
 ### I campi o la `response` mostrano `Any` nell'IDE
 
-I file `greet_pb2.pyi` e `greet_pb2_grpc.pyi` non sono presenti su disco.
-Sono committati nel repo: se mancano, fai `git checkout` oppure avvia `client.py`
-una volta per rigenerarli. Se il problema persiste dopo averli recuperati,
-riavvia il Language Server dell'editor.
+Pylance ha bisogno dei file `.pyi` su disco per fare l'analisi statica dei tipi.
+Verifica che `greet_pb2.pyi` e `greet_pb2_grpc.pyi` siano presenti nella cartella
+`PythonClient/`. Se mancano, avvia `client.py` almeno una volta: la generazione
+automatica li ricrea. Se il problema persiste, riavvia il Language Server dell'editor.

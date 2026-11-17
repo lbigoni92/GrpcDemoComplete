@@ -6,9 +6,8 @@ using Grpc.Core;
 
 public static class BiDiStreamClient
 {
-    public static async Task Run(GrpcChannel channel)
+    public static async Task Run(Greeter.GreeterClient client)
     {
-        var client = new Greeter.GreeterClient(channel);
         using var call = client.Chat();
 
         var readTask = Task.Run(async () =>

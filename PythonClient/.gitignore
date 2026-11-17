@@ -8,7 +8,7 @@ __pycache__/
 venv/
 env/
 
-# Stub gRPC generati automaticamente da client.py a runtime (protoc --python_out / --grpc_python_out)
-# I file .pyi vengono committati intenzionalmente: Pylance li legge staticamente senza eseguire il codice.
+# Stub gRPC generati automaticamente da client.py (protoc --python_out / --grpc_python_out)
+# Il .pyi viene committato intenzionalmente: serve a Pylance per l'analisi statica dei tipi.
 greet_pb2.py
 greet_pb2_grpc.py

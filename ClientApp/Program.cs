@@ -1,7 +1,8 @@
+using Grpc.Net.Client;
+using GrpcDemo;
 using System;
 using System.Net.Http;
 using System.Threading.Tasks;
-using Grpc.Net.Client;
 
 class Program
 {
@@ -17,6 +18,8 @@ class Program
             HttpHandler = httpHandler
         });
 
+        var client = new Greeter.GreeterClient(channel);
+
 
         while (true)
         {
@@ -26,21 +29,22 @@ class Program
             Console.WriteLine("3) Client Streaming");
             Console.WriteLine("4) Bidirectional Streaming");
             Console.WriteLine("0) Esci");
+            Console.WriteLine("C#>");
 
             var input = Console.ReadLine();
             switch (input)
             {
                 case "1":
-                    await UnaryClient.Run(channel);
+                    await UnaryClient.Run(client);
                     break;
                 case "2":
-                    await ServerStreamClient.Run(channel);
+                    await ServerStreamClient.Run(client);
                     break;
                 case "3":
-                    await ClientStreamClient.Run(channel);
+                    await ClientStreamClient.Run(client);
                     break;
                 case "4":
-                    await BiDiStreamClient.Run(channel);
+                    await BiDiStreamClient.Run(client);
                     break;
                 case "0":
                     return;
